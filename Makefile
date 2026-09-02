@@ -33,10 +33,11 @@ ifneq (, $(shell which i686-elf-gcc 2>/dev/null))
 else
     CC   := gcc
     LD   := ld
-    CFLAGS := -m32 -ffreestanding -fno-stack-protector -fno-pie -nostdlib \
+    CFLAGS := -m32 -std=gnu99 -ffreestanding -fno-stack-protector -fno-pie -nostdlib \
               -Wall -Wextra -O2 -I./include
     LDFLAGS := -m elf_i386 -nostdlib
 endif
+
 
 # ---------------------------------------------------------------------------
 # Sources & Objects
