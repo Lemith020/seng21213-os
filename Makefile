@@ -2,40 +2,52 @@ ASM = nasm
 CC = gcc
 LD = ld
 
-CFLAGS = -m32 -std=gnu99 -ffreestanding -fno-stack-protector -fno-pie -nostdlib -Wall -Wextra -O2 -Iinclude
+CFLAGS = -m32 -std=gnu99 -ffreestanding -fno-stack-protector -fno-pie -nostdlib -Wall -Wextra -O2 -Iinclude -c
 LDFLAGS = -m elf_i386 -nostdlib -T linker.ld
 
-OBJS = build/kernel_entry.o build/switch.o build/kernel.o build/vga.o build/keyboard.o build/process.o build/scheduler.o
+OBJS = build/kernel_entry.o build/switch.o build/kernel.o build/vga.o build/keyboard.o build/process.o build/scheduler.o build/thread.o build/mutex.o build/semaphore.o
 
 all: seng21213-os.img
 
 build/kernel_entry.o: kernel/kernel_entry.asm
 	@mkdir -p build
-	$(ASM) -f elf32 $< -o $@
+	$(ASM) -f elf32 kernel/kernel_entry.asm -o build/kernel_entry.o
 
 build/switch.o: boot/switch.asm
 	@mkdir -p build
-	$(ASM) -f elf32 $< -o $@
+	$(ASM) -f elf32 boot/switch.asm -o build/switch.o
 
 build/kernel.o: kernel/kernel.c
 	@mkdir -p build
-	$(CC) $(CFLAGS) -c $< -o $@
+	$(CC) $(CFLAGS) kernel/kernel.c -o build/kernel.o
 
 build/vga.o: kernel/vga.c
 	@mkdir -p build
-	$(CC) $(CFLAGS) -c $< -o $@
+	$(CC) $(CFLAGS) kernel/vga.c -o build/vga.o
 
 build/keyboard.o: kernel/keyboard.c
 	@mkdir -p build
-	$(CC) $(CFLAGS) -c $< -o $@
+	$(CC) $(CFLAGS) kernel/keyboard.c -o build/keyboard.o
 
 build/process.o: kernel/process.c
 	@mkdir -p build
-	$(CC) $(CFLAGS) -c $< -o $@
+	$(CC) $(CFLAGS) kernel/process.c -o build/process.o
 
 build/scheduler.o: kernel/scheduler.c
 	@mkdir -p build
-	$(CC) $(CFLAGS) -c $< -o $@
+	$(CC) $(CFLAGS) kernel/scheduler.c -o build/scheduler.o
+
+build/thread.o: kernel/thread.c
+	@mkdir -p build
+	$(CC) $(CFLAGS) kernel/thread.c -o build/thread.o
+
+build/mutex.o: kernel/mutex.c
+	@mkdir -p build
+	$(CC) $(CFLAGS) kernel/mutex.c -o build/mutex.o
+
+build/semaphore.o: kernel/semaphore.c
+	@mkdir -p build
+	$(CC) $(CFLAGS) kernel/semaphore.c -o build/semaphore.o
 
 build/kernel.elf: $(OBJS) linker.ld
 	$(LD) $(LDFLAGS) $(OBJS) -o build/kernel.elf

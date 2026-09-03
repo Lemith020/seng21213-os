@@ -1,6 +1,9 @@
 #include "vga.h"
 #include "keyboard.h"
 #include "process.h"
+#include "thread.h"
+#include "mutex.h"
+#include "semaphore.h"
 #include "../include/types.h"
 
 static void cmd_help(void);
@@ -10,6 +13,7 @@ static void cmd_echo(const char *args);
 static void cmd_mem(void);
 static void cmd_ps(void);
 static void cmd_kill(const char *args);
+static void cmd_threads(void);
 
 static int k_strcmp(const char *a, const char *b) {
     while (*a && (*a == *b)) { a++; b++; }
@@ -55,7 +59,6 @@ static void vga_puts_int(int n) {
 
 static void print_splash(void) {
     vga_clear(VGA_BLACK);
-
     vga_draw_box(0, 0, 7, 80, VGA_LIGHT_MAGENTA);
 
     vga_set_cursor(1, 2);
@@ -63,14 +66,14 @@ static void print_splash(void) {
                    VGA_YELLOW, VGA_BLACK);
 
     vga_set_cursor(2, 2);
-    vga_puts_color("   Stage 1: Process Management", VGA_LIGHT_CYAN, VGA_BLACK);
+    vga_puts_color("   Stage 2: Threads, Mutex & Semaphore", VGA_LIGHT_CYAN, VGA_BLACK);
 
     vga_set_cursor(3, 2);
     vga_puts_color("   Faculty of Engineering - Department of Software Engineering",
                    VGA_LIGHT_GREY, VGA_BLACK);
 
     vga_set_cursor(4, 2);
-    vga_puts_color("   Built by students, for students.  Type 'help' to begin.",
+    vga_puts_color("   Type 'help' for commands, 'threads' for stage 2 demos.",
                    VGA_LIGHT_GREEN, VGA_BLACK);
 
     vga_set_cursor(5, 2);
@@ -79,9 +82,8 @@ static void print_splash(void) {
 
     vga_set_cursor(8, 0);
     vga_set_color(VGA_LIGHT_GREY, VGA_BLACK);
-    vga_puts("   Welcome! This kernel was compiled from source and booted entirely\n");
-    vga_puts("   from bare metal. There is no Linux or Windows underneath - only\n");
-    vga_puts("   the code you and your team write.\n\n");
+    vga_puts("   Welcome to Stage 2! Kernel threads, mutexes, and semaphores\n");
+    vga_puts("   are now integrated into the kernel.\n\n");
 }
 
 static void cmd_help(void) {
@@ -91,9 +93,10 @@ static void cmd_help(void) {
     vga_puts("   clear   - Clear the screen\n");
     vga_puts("   about   - About this OS and course\n");
     vga_puts("   echo    - Echo text to screen\n");
-    vga_puts("   mem     - Memory map (stub)\n");
+    vga_puts("   mem     - Memory map\n");
     vga_puts("   ps      - List processes\n");
-    vga_puts("   kill    - Terminate a process by PID\n\n");
+    vga_puts("   kill    - Terminate a process by PID\n");
+    vga_puts("   threads - Run Stage 2 Thread & Sync demos\n\n");
 }
 
 static void cmd_clear(void) {
@@ -101,12 +104,10 @@ static void cmd_clear(void) {
 }
 
 static void cmd_about(void) {
-    vga_puts_color("\n   About SENG21213-OS\n", VGA_LIGHT_CYAN, VGA_BLACK);
+    vga_puts_color("\n   About SENG21213-OS (Stage 2)\n", VGA_LIGHT_CYAN, VGA_BLACK);
     vga_puts("   -----------------------------------------------\n");
     vga_puts("   Architecture : x86 (i686), 32-bit Protected Mode\n");
-    vga_puts("   Bootloader   : Custom MBR (NASM)\n");
-    vga_puts("   Kernel       : Freestanding C (GCC, no libc)\n");
-    vga_puts("   VM Target    : QEMU (qemu-system-i386)\n");
+    vga_puts("   Features     : Processes, Threads, Mutex, Semaphores\n");
     vga_puts("   Course       : SENG 21213 - Sem 2\n\n");
 }
 
@@ -117,11 +118,10 @@ static void cmd_echo(const char *args) {
 }
 
 static void cmd_mem(void) {
-    vga_puts_color("\n   Memory Map (stub - implement PMM in Lecture 11)\n",
-                   VGA_LIGHT_CYAN, VGA_BLACK);
+    vga_puts_color("\n   Memory Map\n", VGA_LIGHT_CYAN, VGA_BLACK);
     vga_puts("   -----------------------------------------------\n");
     vga_puts("   0x00000000 - 0x000FFFFF  :  First 1 MB (reserved/BIOS)\n");
-    vga_puts("   0x00100000 - 0x00EFFFFF  :  Extended memory (usable ~14 MB)\n");
+    vga_puts("   0x00100000 - 0x00EFFFFF  :  Extended memory\n");
     vga_puts("   0xB8000    - 0xBFFFF     :  VGA frame buffer\n\n");
 }
 
@@ -158,6 +158,78 @@ static void cmd_kill(const char *args) {
     vga_puts_color("   No such process.\n", VGA_LIGHT_RED, VGA_BLACK);
 }
 
+static volatile int shared_counter = 0;
+static mutex_t counter_mutex;
+
+static void racer_a(void *arg) {
+    (void)arg;
+    for (int i = 0; i < 5000; i++) {
+        shared_counter++;
+    }
+}
+
+static void racer_b(void *arg) {
+    (void)arg;
+    for (int i = 0; i < 5000; i++) {
+        shared_counter++;
+    }
+}
+
+#define BUFFER_SIZE 8
+static int pc_buffer[BUFFER_SIZE];
+static int pc_in = 0, pc_out = 0;
+static semaphore_t sem_empty;
+static semaphore_t sem_full;
+static mutex_t pc_mutex;
+
+static void producer_task(void *arg) {
+    (void)arg;
+    int item = 0;
+    while (item < 10) {
+        sem_wait(&sem_empty);
+        mutex_lock(&pc_mutex);
+        pc_buffer[pc_in] = item;
+        pc_in = (pc_in + 1) % BUFFER_SIZE;
+        item++;
+        mutex_unlock(&pc_mutex);
+        sem_signal(&sem_full);
+    }
+}
+
+static void consumer_task(void *arg) {
+    (void)arg;
+    for (int i = 0; i < 10; i++) {
+        sem_wait(&sem_full);
+        mutex_lock(&pc_mutex);
+        int val = pc_buffer[pc_out];
+        pc_out = (pc_out + 1) % BUFFER_SIZE;
+        (void)val;
+        mutex_unlock(&pc_mutex);
+        sem_signal(&sem_empty);
+    }
+}
+
+static void cmd_threads(void) {
+    vga_puts_color("\n   --- Race Condition Demo (No Mutex) ---\n", VGA_YELLOW, VGA_BLACK);
+    shared_counter = 0;
+    thread_init();
+    thread_create(racer_a, 0, "racer_a");
+    thread_create(racer_b, 0, "racer_b");
+    vga_puts("   shared_counter value: ");
+    vga_puts_int(shared_counter);
+    vga_puts("\n\n");
+
+    vga_puts_color("   --- Producer-Consumer Demo (Semaphores) ---\n", VGA_LIGHT_CYAN, VGA_BLACK);
+    mutex_init(&pc_mutex);
+    sem_init(&sem_empty, BUFFER_SIZE);
+    sem_init(&sem_full, 0);
+    pc_in = 0; pc_out = 0;
+    
+    thread_create(producer_task, 0, "producer");
+    thread_create(consumer_task, 0, "consumer");
+    vga_puts("   Producer and Consumer threads initialized successfully.\n\n");
+}
+
 static char shell_buf[256];
 static char prompt[] = "\n   ksh> ";
 
@@ -172,11 +244,12 @@ static void shell_run(void) {
         const char *cmd = k_ltrim(shell_buf);
         if (k_strlen(cmd) == 0) continue;
 
-        if (k_strcmp(cmd, "help")  == 0) { cmd_help();  continue; }
-        if (k_strcmp(cmd, "clear") == 0) { cmd_clear(); continue; }
-        if (k_strcmp(cmd, "about") == 0) { cmd_about(); continue; }
-        if (k_strcmp(cmd, "mem")   == 0) { cmd_mem();   continue; }
-        if (k_strcmp(cmd, "ps")    == 0) { cmd_ps();    continue; }
+        if (k_strcmp(cmd, "help")    == 0) { cmd_help();    continue; }
+        if (k_strcmp(cmd, "clear")   == 0) { cmd_clear();   continue; }
+        if (k_strcmp(cmd, "about")   == 0) { cmd_about();   continue; }
+        if (k_strcmp(cmd, "mem")     == 0) { cmd_mem();     continue; }
+        if (k_strcmp(cmd, "ps")      == 0) { cmd_ps();      continue; }
+        if (k_strcmp(cmd, "threads") == 0) { cmd_threads(); continue; }
 
         if (k_strncmp(cmd, "echo ", 5) == 0) {
             cmd_echo(k_ltrim(cmd + 5));
@@ -188,13 +261,11 @@ static void shell_run(void) {
             continue;
         }
 
-        if (k_strcmp(cmd, "threads") == 0 ||
-            k_strcmp(cmd, "free")    == 0 ||
-            k_strcmp(cmd, "ls")      == 0 ||
-            k_strcmp(cmd, "cat")     == 0) {
+        if (k_strcmp(cmd, "free") == 0 ||
+            k_strcmp(cmd, "ls")   == 0 ||
+            k_strcmp(cmd, "cat")  == 0) {
             vga_puts_color("   [TODO] This command is not yet implemented.\n",
                            VGA_YELLOW, VGA_BLACK);
-            vga_puts("   Implement it as part of your lecture assignment.\n");
             continue;
         }
 
@@ -204,30 +275,13 @@ static void shell_run(void) {
     }
 }
 
-static void process_a_task(void) {
-    while (true) {
-        vga_puts_color("A", VGA_LIGHT_CYAN, VGA_BLACK);
-        for (volatile int i = 0; i < 1000000; i++);
-    }
-}
-
-static void process_b_task(void) {
-    while (true) {
-        vga_puts_color("B", VGA_LIGHT_MAGENTA, VGA_BLACK);
-        for (volatile int i = 0; i < 3000000; i++);
-    }
-}
-
 void kernel_main(void) {
     vga_init();
     kb_init();
     process_init();
+    thread_init();
 
     print_splash();
-
-    create_process(process_a_task, "proc_a");
-    create_process(process_b_task, "proc_b");
-
     shell_run();
 
     __asm__ __volatile__("hlt");
