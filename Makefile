@@ -5,7 +5,7 @@ LD = ld
 CFLAGS = -m32 -std=gnu99 -ffreestanding -fno-stack-protector -fno-pie -nostdlib -Wall -Wextra -O2 -Iinclude -c
 LDFLAGS = -m elf_i386 -nostdlib -T linker.ld
 
-OBJS = build/kernel_entry.o build/switch.o build/kernel.o build/vga.o build/keyboard.o build/process.o build/scheduler.o build/thread.o build/mutex.o build/semaphore.o
+OBJS = build/kernel_entry.o build/switch.o build/kernel.o build/vga.o build/keyboard.o build/process.o build/scheduler.o build/thread.o build/mutex.o build/semaphore.o build/pmm.o
 
 all: seng21213-os.img
 
@@ -48,6 +48,10 @@ build/mutex.o: kernel/mutex.c
 build/semaphore.o: kernel/semaphore.c
 	@mkdir -p build
 	$(CC) $(CFLAGS) kernel/semaphore.c -o build/semaphore.o
+
+build/pmm.o: kernel/pmm.c
+	@mkdir -p build
+	$(CC) $(CFLAGS) kernel/pmm.c -o build/pmm.o
 
 build/kernel.elf: $(OBJS) linker.ld
 	$(LD) $(LDFLAGS) $(OBJS) -o build/kernel.elf

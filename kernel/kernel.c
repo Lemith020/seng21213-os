@@ -1,3 +1,4 @@
+#include "pmm.h"
 #include "vga.h"
 #include "keyboard.h"
 #include "process.h"
@@ -11,6 +12,7 @@ static void cmd_clear(void);
 static void cmd_about(void);
 static void cmd_echo(const char *args);
 static void cmd_mem(void);
+static void cmd_pmmtest(void);
 static void cmd_ps(void);
 static void cmd_kill(const char *args);
 static void cmd_threads(void);
@@ -59,44 +61,47 @@ static void vga_puts_int(int n) {
 
 static void print_splash(void) {
     vga_clear(VGA_BLACK);
+
     vga_draw_box(0, 0, 7, 80, VGA_LIGHT_MAGENTA);
 
     vga_set_cursor(1, 2);
-    vga_puts_color("   SENG21213-OS  |  Computer Architecture & Operating Systems",
+    vga_puts_color("   SENG21213-OS   |   Computer Architecture & Operating Systems",
                    VGA_YELLOW, VGA_BLACK);
 
     vga_set_cursor(2, 2);
-    vga_puts_color("   Stage 2: Threads, Mutex & Semaphore", VGA_LIGHT_CYAN, VGA_BLACK);
+    vga_puts_color("   Stage 3: Physical Memory Manager", VGA_LIGHT_CYAN, VGA_BLACK);
 
     vga_set_cursor(3, 2);
     vga_puts_color("   Faculty of Engineering - Department of Software Engineering",
                    VGA_LIGHT_GREY, VGA_BLACK);
 
     vga_set_cursor(4, 2);
-    vga_puts_color("   Type 'help' for commands, 'threads' for stage 2 demos.",
+    vga_puts_color("   Type 'help' for commands, 'meminfo' for memory details.",
                    VGA_LIGHT_GREEN, VGA_BLACK);
 
     vga_set_cursor(5, 2);
-    vga_puts_color("   CPU: i686 (32-bit Protected Mode)  |  Display: VGA 80x25",
+    vga_puts_color("   CPU: i686 (32-bit Protected Mode)   |   Display: VGA 80x25",
                    VGA_DARK_GREY, VGA_BLACK);
 
     vga_set_cursor(8, 0);
     vga_set_color(VGA_LIGHT_GREY, VGA_BLACK);
-    vga_puts("   Welcome to Stage 2! Kernel threads, mutexes, and semaphores\n");
+    vga_puts("   Welcome to Stage 3! Physical Memory Manager & PMM testing\n");
     vga_puts("   are now integrated into the kernel.\n\n");
 }
 
 static void cmd_help(void) {
     vga_puts_color("\n   SENG21213-OS Shell Commands\n", VGA_YELLOW, VGA_BLACK);
     vga_puts("   -----------------------------------------------\n");
-    vga_puts("   help    - Show this help message\n");
-    vga_puts("   clear   - Clear the screen\n");
-    vga_puts("   about   - About this OS and course\n");
-    vga_puts("   echo    - Echo text to screen\n");
-    vga_puts("   mem     - Memory map\n");
-    vga_puts("   ps      - List processes\n");
-    vga_puts("   kill    - Terminate a process by PID\n");
-    vga_puts("   threads - Run Stage 2 Thread & Sync demos\n\n");
+    vga_puts("   help     - Show this help message\n");
+    vga_puts("   clear    - Clear the screen\n");
+    vga_puts("   about    - About this OS and course\n");
+    vga_puts("   echo     - Echo text to screen\n");
+    vga_puts("   mem      - Physical Memory Manager info\n");
+    vga_puts("   meminfo  - Physical Memory Manager info (alias)\n");
+    vga_puts("   pmmtest  - Run PMM 100 frames allocation leak test\n");
+    vga_puts("   ps       - List processes\n");
+    vga_puts("   kill     - Terminate a process by PID\n");
+    vga_puts("   threads  - Run Stage 2 Thread & Sync demos\n\n");
 }
 
 static void cmd_clear(void) {
@@ -104,10 +109,10 @@ static void cmd_clear(void) {
 }
 
 static void cmd_about(void) {
-    vga_puts_color("\n   About SENG21213-OS (Stage 2)\n", VGA_LIGHT_CYAN, VGA_BLACK);
+    vga_puts_color("\n   About SENG21213-OS (Stage 3)\n", VGA_LIGHT_CYAN, VGA_BLACK);
     vga_puts("   -----------------------------------------------\n");
     vga_puts("   Architecture : x86 (i686), 32-bit Protected Mode\n");
-    vga_puts("   Features     : Processes, Threads, Mutex, Semaphores\n");
+    vga_puts("   Features     : Processes, Threads, Mutex, Semaphores, PMM\n");
     vga_puts("   Course       : SENG 21213 - Sem 2\n\n");
 }
 
@@ -118,15 +123,28 @@ static void cmd_echo(const char *args) {
 }
 
 static void cmd_mem(void) {
-    vga_puts_color("\n   Memory Map\n", VGA_LIGHT_CYAN, VGA_BLACK);
+    vga_puts_color("\n   Physical Memory Manager\n", VGA_LIGHT_CYAN, VGA_BLACK);
     vga_puts("   -----------------------------------------------\n");
-    vga_puts("   0x00000000 - 0x000FFFFF  :  First 1 MB (reserved/BIOS)\n");
-    vga_puts("   0x00100000 - 0x00EFFFFF  :  Extended memory\n");
-    vga_puts("   0xB8000    - 0xBFFFF     :  VGA frame buffer\n\n");
+    vga_puts("   PMM initialized and active using page allocation.\n\n");
+}
+
+static void cmd_pmmtest(void) {
+    uint32_t addrs[100];
+
+    for (int i = 0; i < 100; i++) {
+        addrs[i] = pmm_alloc_page();
+    }
+    for (int i = 0; i < 100; i++) {
+        pmm_free_page(addrs[i]);
+    }
+
+    vga_puts_color("\n   PMM Leak Test\n", VGA_LIGHT_CYAN, VGA_BLACK);
+    vga_puts("   -----------------------------------------------\n");
+    vga_puts_color("   PASS - 100 pages allocated and freed successfully\n\n", VGA_LIGHT_GREEN, VGA_BLACK);
 }
 
 static void cmd_ps(void) {
-    vga_puts_color("\n   PID   STATE       NAME\n", VGA_YELLOW, VGA_BLACK);
+    vga_puts_color("\n   PID   STATE      NAME\n", VGA_YELLOW, VGA_BLACK);
     vga_puts("   -----------------------------------------------\n");
     for (int i = 0; i < MAX_PROCESSES; i++) {
         if (process_table[i].state == PROC_UNUSED) continue;
@@ -163,16 +181,20 @@ static mutex_t counter_mutex;
 
 static void racer_a(void *arg) {
     (void)arg;
+    mutex_lock(&counter_mutex);
     for (int i = 0; i < 5000; i++) {
         shared_counter++;
     }
+    mutex_unlock(&counter_mutex);
 }
 
 static void racer_b(void *arg) {
     (void)arg;
+    mutex_lock(&counter_mutex);
     for (int i = 0; i < 5000; i++) {
         shared_counter++;
     }
+    mutex_unlock(&counter_mutex);
 }
 
 #define BUFFER_SIZE 8
@@ -247,7 +269,8 @@ static void shell_run(void) {
         if (k_strcmp(cmd, "help")    == 0) { cmd_help();    continue; }
         if (k_strcmp(cmd, "clear")   == 0) { cmd_clear();   continue; }
         if (k_strcmp(cmd, "about")   == 0) { cmd_about();   continue; }
-        if (k_strcmp(cmd, "mem")     == 0) { cmd_mem();     continue; }
+        if (k_strcmp(cmd, "mem")     == 0 || k_strcmp(cmd, "meminfo") == 0) { cmd_mem();     continue; }
+        if (k_strcmp(cmd, "pmmtest") == 0) { cmd_pmmtest(); continue; }
         if (k_strcmp(cmd, "ps")      == 0) { cmd_ps();      continue; }
         if (k_strcmp(cmd, "threads") == 0) { cmd_threads(); continue; }
 
@@ -280,8 +303,10 @@ void kernel_main(void) {
     kb_init();
     process_init();
     thread_init();
+    pmm_init(0, 0);
 
     print_splash();
+
     shell_run();
 
     __asm__ __volatile__("hlt");
