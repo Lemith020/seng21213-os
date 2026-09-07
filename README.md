@@ -69,6 +69,87 @@ make
 # Run in QEMU emulator
 make run
 
+# SENG21213-OS - Stage 4: RAM Disk File System
+
+This document outlines the implementation and testing of the RAM Disk File System (Stage 4) for SENG21213-OS. Below are the sequential shell commands used to verify file creation, writing, reading, listing, and deletion.
+
+---
+
+## Filesystem Testing Commands & Verification
+
+### 1. Creating and Writing to the First File
+
+* **Command:** `touch a.txt`
+* **Description:** Creates an empty file named `a.txt` by allocating an inode and a directory entry.
+* **Screenshot:**
+  ![touch a txt](https://github.com/user-attachments/assets/f0fb8f61-0088-4155-8125-0a884e0b8125)
+
+* **Command:** `write a.txt Hello`
+* **Description:** Writes the string `"Hello"` into `a.txt` utilizing the allocated data blocks on the RAM disk.
+* **Screenshot:**
+  ![write a txt Hello](https://github.com/user-attachments/assets/f71f1b88-a624-4858-9764-8b97ba8289d0)
+
+* **Command:** `ls`
+* **Description:** Lists all active files present in the RAM disk file system.
+* **Expected Output:** `a.txt`
+* **Screenshot:**
+  ![ls](https://github.com/user-attachments/assets/95fc09e7-b018-4326-80a1-8a93dc667f23)
+
+---
+
+### 2. Reading File Content
+
+* **Command:** `cat a.txt`
+* **Description:** Reads and outputs the contents stored within `a.txt` to the VGA display.
+* **Expected Output:** `Hello`
+* **Screenshot:**
+  ![cat a txt](https://github.com/user-attachments/assets/135a09d2-97e9-4134-873a-c614d355ea55)
+
+---
+
+### 3. Adding a Second File and Updating State
+
+* **Command:** `touch b.txt`
+* **Description:** Creates a second file named `b.txt`.
+
+* **Command:** `write b.txt Testing123`
+* **Description:** Writes data into `b.txt`.
+* **Screenshot:**
+  ![write b txt Testing123](https://github.com/user-attachments/assets/412f57a4-aa89-4e25-8215-665eb4f6cee5)
+
+* **Command:** `ls`
+* **Description:** Lists the files to verify both entries exist.
+* **Expected Output:** `a.txt`, `b.txt`
+* **Screenshot:**
+  ![ls](https://github.com/user-attachments/assets/c0b57e77-3087-49d2-afef-4c240eec8a1a)
+
+---
+
+### 4. Deleting a File (`rm`)
+
+* **Command:** `rm a.txt`
+* **Description:** Unlinks `a.txt`, freeing its associated blocks and inode index.
+* **Screenshot:**
+  ![rm a txt](https://github.com/user-attachments/assets/04e40bd8-abc1-4a49-b988-dc67fe892f83)
+
+* **Command:** `ls`
+* **Description:** Verifies that `a.txt` has been removed and only `b.txt` remains.
+* **Expected Output:** `b.txt`
+* **Screenshot:**
+  ![ls](https://github.com/user-attachments/assets/952f7e61-ad98-4626-adf9-def53a765c74)
+
+---
+
+### 5. Creating Multiple Files
+
+* **Commands:** 
+  ```text
+  touch c.txt
+  touch d.txt
+  touch e.txt
+
 # Clean build artifacts
 make clean
+
+
 
