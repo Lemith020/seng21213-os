@@ -149,7 +149,8 @@ This document outlines the implementation and testing of the RAM Disk File Syste
   touch e.txt
 
 ### Other
-![Uploading mem ,  pmmtest, threads.png…]()
+<img width="762" height="427" alt="mem ,  pmmtest, threads" src="https://github.com/user-attachments/assets/90ea8829-e128-48ea-b532-2136dec8efc4" />
+
 
 
 
