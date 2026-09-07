@@ -1,3 +1,4 @@
+#include "fs.h"
 #include "pmm.h"
 #include "vga.h"
 #include "keyboard.h"
@@ -16,6 +17,11 @@ static void cmd_pmmtest(void);
 static void cmd_ps(void);
 static void cmd_kill(const char *args);
 static void cmd_threads(void);
+static void cmd_ls(void);
+static void cmd_touch(const char *args);
+static void cmd_cat(const char *args);
+static void cmd_write(const char *args);
+static void cmd_rm(const char *args);
 
 static int k_strcmp(const char *a, const char *b) {
     while (*a && (*a == *b)) { a++; b++; }
@@ -61,32 +67,30 @@ static void vga_puts_int(int n) {
 
 static void print_splash(void) {
     vga_clear(VGA_BLACK);
-
     vga_draw_box(0, 0, 7, 80, VGA_LIGHT_MAGENTA);
 
     vga_set_cursor(1, 2);
-    vga_puts_color("   SENG21213-OS   |   Computer Architecture & Operating Systems",
+    vga_puts_color("   SENG21213-OS  |  Computer Architecture & Operating Systems",
                    VGA_YELLOW, VGA_BLACK);
 
     vga_set_cursor(2, 2);
-    vga_puts_color("   Stage 3: Physical Memory Manager", VGA_LIGHT_CYAN, VGA_BLACK);
+    vga_puts_color("   Stage 4: RAM Disk File System", VGA_LIGHT_CYAN, VGA_BLACK);
 
     vga_set_cursor(3, 2);
     vga_puts_color("   Faculty of Engineering - Department of Software Engineering",
                    VGA_LIGHT_GREY, VGA_BLACK);
 
     vga_set_cursor(4, 2);
-    vga_puts_color("   Type 'help' for commands, 'meminfo' for memory details.",
+    vga_puts_color("   Type 'help' for commands, 'ls' to view files.",
                    VGA_LIGHT_GREEN, VGA_BLACK);
 
     vga_set_cursor(5, 2);
-    vga_puts_color("   CPU: i686 (32-bit Protected Mode)   |   Display: VGA 80x25",
+    vga_puts_color("   CPU: i686 (32-bit Protected Mode)  |  Display: VGA 80x25",
                    VGA_DARK_GREY, VGA_BLACK);
 
     vga_set_cursor(8, 0);
     vga_set_color(VGA_LIGHT_GREY, VGA_BLACK);
-    vga_puts("   Welcome to Stage 3! Physical Memory Manager & PMM testing\n");
-    vga_puts("   are now integrated into the kernel.\n\n");
+    vga_puts("   Welcome to Stage 4! RAM Disk File System is active.\n\n");
 }
 
 static void cmd_help(void) {
@@ -98,10 +102,15 @@ static void cmd_help(void) {
     vga_puts("   echo     - Echo text to screen\n");
     vga_puts("   mem      - Physical Memory Manager info\n");
     vga_puts("   meminfo  - Physical Memory Manager info (alias)\n");
-    vga_puts("   pmmtest  - Run PMM 100 frames allocation leak test\n");
+    vga_puts("   pmmtest  - Run PMM allocation leak test\n");
     vga_puts("   ps       - List processes\n");
     vga_puts("   kill     - Terminate a process by PID\n");
-    vga_puts("   threads  - Run Stage 2 Thread & Sync demos\n\n");
+    vga_puts("   threads  - Run Stage 2 Thread & Sync demos\n");
+    vga_puts("   ls       - List files in RAM disk\n");
+    vga_puts("   touch    - Create a new file (e.g. touch a.txt)\n");
+    vga_puts("   cat      - Read file contents (e.g. cat a.txt)\n");
+    vga_puts("   write    - Write text to file (e.g. write a.txt Hello)\n");
+    vga_puts("   rm       - Remove/delete a file (e.g. rm a.txt)\n\n");
 }
 
 static void cmd_clear(void) {
@@ -109,10 +118,10 @@ static void cmd_clear(void) {
 }
 
 static void cmd_about(void) {
-    vga_puts_color("\n   About SENG21213-OS (Stage 3)\n", VGA_LIGHT_CYAN, VGA_BLACK);
+    vga_puts_color("\n   About SENG21213-OS (Stage 4)\n", VGA_LIGHT_CYAN, VGA_BLACK);
     vga_puts("   -----------------------------------------------\n");
     vga_puts("   Architecture : x86 (i686), 32-bit Protected Mode\n");
-    vga_puts("   Features     : Processes, Threads, Mutex, Semaphores, PMM\n");
+    vga_puts("   Features     : Processes, Threads, PMM, RAM Disk File System\n");
     vga_puts("   Course       : SENG 21213 - Sem 2\n\n");
 }
 
@@ -123,28 +132,35 @@ static void cmd_echo(const char *args) {
 }
 
 static void cmd_mem(void) {
-    vga_puts_color("\n   Physical Memory Manager\n", VGA_LIGHT_CYAN, VGA_BLACK);
-    vga_puts("   -----------------------------------------------\n");
-    vga_puts("   PMM initialized and active using page allocation.\n\n");
+    unsigned int total_bytes = pmm_get_total_memory();
+    unsigned int free_bytes  = pmm_get_free_memory();
+
+    vga_puts_color("\n  Physical Memory Manager\n", VGA_LIGHT_CYAN, VGA_BLACK);
+    vga_puts("  -----------------------------------------------\n");
+    vga_puts("  Total : "); vga_puts_int(total_bytes / 1024); vga_puts(" KB\n");
+    vga_puts("  Free  : "); vga_puts_int(free_bytes / 1024); vga_puts(" KB\n\n");
 }
 
 static void cmd_pmmtest(void) {
-    uint32_t addrs[100];
+    unsigned int before = pmm_get_free_memory();
+    uint32_t page = pmm_alloc_page();
+    pmm_free_page(page);
+    unsigned int after = pmm_get_free_memory();
 
-    for (int i = 0; i < 100; i++) {
-        addrs[i] = pmm_alloc_page();
-    }
-    for (int i = 0; i < 100; i++) {
-        pmm_free_page(addrs[i]);
-    }
+    vga_puts_color("\n  PMM Leak Test\n", VGA_LIGHT_CYAN, VGA_BLACK);
+    vga_puts("  -----------------------------------------------\n");
+    vga_puts("  Free before : "); vga_puts_int(before); vga_puts(" bytes\n");
+    vga_puts("  Free after  : "); vga_puts_int(after); vga_puts(" bytes\n");
 
-    vga_puts_color("\n   PMM Leak Test\n", VGA_LIGHT_CYAN, VGA_BLACK);
-    vga_puts("   -----------------------------------------------\n");
-    vga_puts_color("   PASS - 100 pages allocated and freed successfully\n\n", VGA_LIGHT_GREEN, VGA_BLACK);
+    if (before == after) {
+        vga_puts_color("  PASS - no leaks detected\n\n", VGA_LIGHT_GREEN, VGA_BLACK);
+    } else {
+        vga_puts_color("  FAIL - frame leak detected\n\n", VGA_LIGHT_RED, VGA_BLACK);
+    }
 }
 
 static void cmd_ps(void) {
-    vga_puts_color("\n   PID   STATE      NAME\n", VGA_YELLOW, VGA_BLACK);
+    vga_puts_color("\n   PID   STATE       NAME\n", VGA_YELLOW, VGA_BLACK);
     vga_puts("   -----------------------------------------------\n");
     for (int i = 0; i < MAX_PROCESSES; i++) {
         if (process_table[i].state == PROC_UNUSED) continue;
@@ -252,6 +268,93 @@ static void cmd_threads(void) {
     vga_puts("   Producer and Consumer threads initialized successfully.\n\n");
 }
 
+// --- File System Command Handlers ---
+static void cmd_ls(void) {
+    vga_puts_color("\n   Filesystem contents:\n", VGA_YELLOW, VGA_BLACK);
+    fs_ls(vga_puts);
+    vga_puts("\n");
+}
+
+static void cmd_touch(const char *args) {
+    if (k_strlen(args) == 0) {
+        vga_puts_color("   Usage: touch <filename>\n", VGA_LIGHT_RED, VGA_BLACK);
+        return;
+    }
+    int fd = fs_open(args, FS_MODE_CREATE);
+    if (fd >= 0) {
+        fs_close(fd);
+        vga_puts_color("   File created successfully.\n", VGA_LIGHT_GREEN, VGA_BLACK);
+    } else {
+        vga_puts_color("   Error creating file.\n", VGA_LIGHT_RED, VGA_BLACK);
+    }
+}
+
+static void cmd_cat(const char *args) {
+    if (k_strlen(args) == 0) {
+        vga_puts_color("   Usage: cat <filename>\n", VGA_LIGHT_RED, VGA_BLACK);
+        return;
+    }
+    int fd = fs_open(args, 0);
+    if (fd < 0) {
+        vga_puts_color("   File not found.\n", VGA_LIGHT_RED, VGA_BLACK);
+        return;
+    }
+    char buf[4096];
+    int bytes = fs_read(fd, buf, sizeof(buf) - 1);
+    if (bytes >= 0) {
+        buf[bytes] = '\0';
+        vga_puts("\n   ");
+        vga_puts(buf);
+        vga_puts("\n\n");
+    }
+    fs_close(fd);
+}
+
+static void cmd_write(const char *args) {
+    char name[28];
+    int i = 0;
+    while (args[i] && args[i] != ' ' && i < 27) {
+        name[i] = args[i];
+        i++;
+    }
+    name[i] = '\0';
+
+    while (args[i] == ' ') i++;
+    const char *text = &args[i];
+
+    if (k_strlen(name) == 0 || k_strlen(text) == 0) {
+        vga_puts_color("   Usage: write <filename> <text>\n", VGA_LIGHT_RED, VGA_BLACK);
+        return;
+    }
+
+    int fd = fs_open(name, FS_MODE_CREATE);
+    if (fd < 0) {
+        vga_puts_color("   Error opening file for write.\n", VGA_LIGHT_RED, VGA_BLACK);
+        return;
+    }
+
+    int written = fs_write(fd, text, k_strlen(text));
+    fs_close(fd);
+
+    if (written >= 0) {
+        vga_puts_color("   Written successfully.\n", VGA_LIGHT_GREEN, VGA_BLACK);
+    } else {
+        vga_puts_color("   Write failed.\n", VGA_LIGHT_RED, VGA_BLACK);
+    }
+}
+
+static void cmd_rm(const char *args) {
+    if (k_strlen(args) == 0) {
+        vga_puts_color("   Usage: rm <filename>\n", VGA_LIGHT_RED, VGA_BLACK);
+        return;
+    }
+    if (fs_unlink(args) == 0) {
+        vga_puts_color("   File deleted.\n", VGA_LIGHT_GREEN, VGA_BLACK);
+    } else {
+        vga_puts_color("   File not found or delete failed.\n", VGA_LIGHT_RED, VGA_BLACK);
+    }
+}
+
 static char shell_buf[256];
 static char prompt[] = "\n   ksh> ";
 
@@ -273,6 +376,7 @@ static void shell_run(void) {
         if (k_strcmp(cmd, "pmmtest") == 0) { cmd_pmmtest(); continue; }
         if (k_strcmp(cmd, "ps")      == 0) { cmd_ps();      continue; }
         if (k_strcmp(cmd, "threads") == 0) { cmd_threads(); continue; }
+        if (k_strcmp(cmd, "ls")      == 0) { cmd_ls();      continue; }
 
         if (k_strncmp(cmd, "echo ", 5) == 0) {
             cmd_echo(k_ltrim(cmd + 5));
@@ -284,11 +388,23 @@ static void shell_run(void) {
             continue;
         }
 
-        if (k_strcmp(cmd, "free") == 0 ||
-            k_strcmp(cmd, "ls")   == 0 ||
-            k_strcmp(cmd, "cat")  == 0) {
-            vga_puts_color("   [TODO] This command is not yet implemented.\n",
-                           VGA_YELLOW, VGA_BLACK);
+        if (k_strncmp(cmd, "touch ", 6) == 0) {
+            cmd_touch(k_ltrim(cmd + 6));
+            continue;
+        }
+
+        if (k_strncmp(cmd, "cat ", 4) == 0) {
+            cmd_cat(k_ltrim(cmd + 4));
+            continue;
+        }
+
+        if (k_strncmp(cmd, "write ", 6) == 0) {
+            cmd_write(k_ltrim(cmd + 6));
+            continue;
+        }
+
+        if (k_strncmp(cmd, "rm ", 3) == 0) {
+            cmd_rm(k_ltrim(cmd + 3));
             continue;
         }
 
@@ -304,6 +420,7 @@ void kernel_main(void) {
     process_init();
     thread_init();
     pmm_init(0, 0);
+    fs_init();
 
     print_splash();
 
