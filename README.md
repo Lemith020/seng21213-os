@@ -1,36 +1,17 @@
-# SENG21213-OS - Stage 2: Basic Shell & Commands
+# SENG21213-OS - Stage 1: Bootloader & Initial Setup
 
-This document outlines the implementation and testing of Stage 2 for SENG21213-OS, highlighting the kernel shell interface and core command utilities.
+This document outlines the implementation, build process, and execution verification for Stage 1 of SENG21213-OS.
 
 ---
 
-## Shell Commands & Verification
+## Build & Execution Process
 
-### 1. System Information & Overview
-* **Command:** `about`
-* **Description:** Displays basic metadata, version information, and system details for the current stage.
+### 1. Compilation & Build (`make`)
+* **Description:** Compiles the source files and prepares the boot sector/kernel image using the project's build automation configuration.
 * **Screenshot:**
-  ![about command](images/about.png)
+  ![terminal build output](images/terminal.png)
 
-### 2. Available Commands (`help`)
-* **Command:** `help`
-* **Description:** Lists all supported shell commands and diagnostic utilities available in the kernel environment.
+### 2. System Status & Initialization (`ps`)
+* **Description:** Verifies the initial process state or system placeholder status during early boot execution.
 * **Screenshot:**
-  ![help command](images/help(stage2).png)
-
-### 3. Screen Management (`clear`)
-* **Command:** `clear`
-* **Description:** Clears the VGA text-mode display buffer, providing a clean terminal output.
-* **Screenshot:**
-  ![clear command](images/clear.png)
-
-### 4. Process & Thread Diagnostics (`ps`, `threads`)
-* **Command:** `ps`
-* **Description:** Outputs the active process list currently managed by the kernel scheduler.
-* **Screenshot:**
-  ![ps command](images/ps(stage2).png)
-
-* **Command:** `threads`
-* **Description:** Displays active execution threads and their respective states.
-* **Screenshot:**
-  ![threads command](images/threads(stage2).png)
+  ![ps command](images/ps(stage1).png)
